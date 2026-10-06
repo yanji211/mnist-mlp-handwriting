@@ -1,16 +1,25 @@
-# 手写数字识别（3 隐藏层 MLP + 平板输入）
+# 手写数字识别（MLP + CNN 双模型 · 并排对比）
 
-用**纯 NumPy** 实现的教学级项目：一个 3 个隐藏神经元层的多层感知机，识别 MNIST 手写数字（0–9），并提供一个**支持平板触摸/手写笔**的网页画板，画完即预测。
+用**纯 NumPy** 实现的教学级项目：用**同一个手写数字**，同时驱动两个网络——
+**3 隐藏层 MLP**（多层感知机）与 **CNN**（卷积神经网络），在网页上**并排对比**
+它们各自的预测、概率分布与内部可视化，直观感受「同样识别数字，CNN 为何更强」。
 
-网络结构与《三层网络识别手写数字_教学文档.md》完全对应：
+两个网络都用纯 NumPy 手写（卷积用 im2col 加速），可与《三层网络识别手写数字_教学文档.md》
+逐行对照，适合边读代码边学原理。
+
+结构对应：
 
 ```
-输入(784) → 隐藏①(256, ReLU) → 隐藏②(128, ReLU) → 隐藏③(64, ReLU) → 输出(10, softmax)
+MLP: 输入(784) → 隐藏①(256,ReLU) → 隐藏②(128,ReLU) → 隐藏③(64,ReLU) → 输出(10,softmax)
+CNN: 输入(1×28×28) → Conv(8,3×3)+ReLU → MaxPool(2) →
+                        Conv(16,3×3)+ReLU → MaxPool(2) → Flatten(784) → FC(10,softmax)
 ```
 
-代码里的每一行都能和文档中的公式对上（见 `model.py` 注释），适合边读代码边学原理。
+MLP 保留**原项目全部功能不变**（平板画板、网络连线可视化、纠错增量学习）；CNN 作为
+**对比模型**叠加在右侧，画一笔即可看到两个网络「各说各话」或「英雄所见略同」。
 
-> **本交付包已包含训练好的 `model.npz`（测试集准确率 98.06%），可跳过「3. 获取素材 / 4. 训练」直接 `python app.py` 使用。** 想自己重训再按下面步骤来。
+> **本交付包已包含训练好的 `model.npz`（MLP，测试集 98.06%）与 `cnn_model.npz`（CNN）。**
+> 直接 `python app.py` 即可看到 MLP vs CNN 对比。CNN 模型由 `train_cnn.py` 训练得到。
 
 ---
 
@@ -19,14 +28,18 @@
 ```
 mnist_mlp/
 ├── model.py          # MLP 定义：forward / backward / save / load（纯 NumPy）
+├── cnn.py            # CNN 定义：im2col 卷积 + 池化 + FC，与 MLP 同接口（纯 NumPy）
 ├── download_data.py  # MNIST 自动下载（多镜像回退）
-├── train.py          # 训练脚本
-├── app.py            # 推理后端（标准库 http.server，无需 Flask）
-├── index.html        # 前端画板（Canvas + 触摸，平板可用）
+├── train.py          # MLP 训练脚本
+├── train_cnn.py      # CNN 训练脚本（复用 MNIST 加载，产出 cnn_model.npz）
+├── app.py            # 推理后端：/predict（MLP）、/predict_both（MLP+CNN 对比）
+├── index.html        # 前端画板 + MLP/CNN 并排对比界面
 ├── requirements.txt  # 仅 numpy
 ├── data/             # MNIST idx 文件（首次运行自动下载）
-├── model.npz         # 训练好的权重（训练后生成）
-└── train_log.json    # 每轮准确率（训练后生成）
+├── model.npz         # MLP 训练好的权重（已自带，测试集 98.06%）
+├── cnn_model.npz     # CNN 训练好的权重（train_cnn.py 产出）
+├── train_log.json    # MLP 每轮准确率
+└── cnn_train_log.json# CNN 每轮准确率
 ```
 
 ## 2. 安装
@@ -105,9 +118,39 @@ python app.py                   # 默认端口 8000
 
 > 注意：单样本增量学习是教学演示用的「记住」机制，少量纠错能改善对应写法；大量纠错可能略微影响整体精度，需要时点「重置」即可回到原始 98% 模型。
 
-## 7. 想继续学
+## 7. CNN 对比模型（新增）
+
+在保留 MLP 全部功能的前提下，新增了一个**纯 NumPy 手写 CNN** 作为对比模型：
+
+- **同一张图，两个网络**：前端一键「预测 & 对比」，右侧并排展示 MLP 与 CNN 各自的
+  预测数字、10 类概率条、以及「一致 / 不一致」结论横幅。
+- **MLP 可视化（左）**：节点 + 连线，节点颜色 = 神经元激活强度（全连接结构）。
+- **CNN 可视化（右）**：第一卷积层的 **8 张 28×28 特征图**网格，直观看到卷积如何
+  保留「空间结构」、提取边缘/笔画特征（这是 CNN 比 MLP 更擅长看图的根本原因）。
+- **顶部准确率对比**：从 `train_log.json` / `models_meta.json` 读取两个网络的测试集
+  准确率（MLP≈98%、CNN≈99%），量化对比。
+
+CNN 与 MLP 使用**完全相同的前向接口**（`forward(X: (N,784)) → (N,10)` 概率、
+`predict`、`run`、`save`、`load`、`learn_example`），因此前后端可无缝切换、并排对照。
+
+训练 CNN：
+
+```bash
+python train_cnn.py               # 默认 12 轮 / batch 128 / lr 0.1
+# 可选参数
+python train_cnn.py --epochs 15 --batch 256 --lr 0.05
+```
+
+训练完成后生成 `cnn_model.npz`，`app.py` 启动时会**自动加载**（若存在）；
+不存在则仅 MLP 可用，不影响原有功能。两个模型都参与「纠错增量学习」与「重置」。
+
+> 想看 CNN 反向传播是否正确：卷积 / 池化梯度已用数值梯度校验（见 `cnn.py` 底部
+> `_grad_check`，运行 `python cnn.py` 可自检）。
+
+## 8. 想继续学
 
 - 对比「1 隐藏层」与「3 隐藏层」的准确率与训练时长（改 `sizes`）。
 - 把 `model.py` 的 ReLU 换成 LeakyReLU / tanh，观察差异。
-- 学完本例后，自然过渡到 CNN（保留空间结构的卷积网络）。
+- 对照 MLP 与 CNN 的准确率、参数量、对「写歪/写小」数字的鲁棒性，理解卷积的平移不变性。
+- 在 `cnn.py` 里加一个卷积层或更大的通道数，观察准确率与训练时长的权衡。
 

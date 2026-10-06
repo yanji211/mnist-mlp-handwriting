@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>手写数字识别（平板可写 + 网络连线可视化 + 纠错学习）</title>
+<title>手写数字识别 · MLP vs CNN 对比</title>
 <style>
-  :root { --bg:#f5f6f8; --card:#fff; --ink:#222; --line:#ddd; --accent:#185FA5; --soft:#eef3f9; }
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#222; --line:#ddd; --accent:#185FA5; --soft:#eef3f9; --cnn:#1E8A5B; --warn:#C0392B; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     background: var(--bg); color: var(--ink); display: flex; flex-direction: column;
     align-items: center; padding: 18px;
   }
-  h1 { font-size: 18px; font-weight: 600; margin: 6px 0 14px; }
-  .layout { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: flex-start; width: 100%; max-width: 820px; }
+  h1 { font-size: 18px; font-weight: 600; margin: 6px 0 14px; text-align:center; }
+  .layout { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: flex-start; width: 100%; max-width: 980px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
           padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
   #pad {
@@ -24,37 +24,51 @@
   button { font-size: 15px; padding: 10px 18px; border-radius: 10px; border: 1px solid var(--line);
            background: #fff; color: var(--ink); cursor: pointer; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.cmp { background: var(--cnn); color:#fff; border-color: var(--cnn); }
   button:active { transform: translateY(1px); }
   .result { margin-top: 14px; text-align: center; }
   .pred { font-size: 40px; font-weight: 700; color: var(--accent); line-height: 1; }
   .hint { color: #999; font-size: 12px; margin-top: 10px; text-align: center; }
 
-  /* 右侧网络可视化面板 */
-  .net { width: min(96vw, 380px); max-height: 88vh; overflow-y: auto; }
-  .net h2 { font-size: 15px; margin: 2px 0 4px; }
-  .net .cap { font-size: 12px; color: #888; margin: 0 0 8px; line-height: 1.5; }
-  .net canvas#netC { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-  .legend { font-size: 11px; color: #777; margin: 8px 0 4px; line-height: 1.6; }
-  .legend b { color: #444; }
+  /* 对比区 */
+  .compare { width: min(96vw, 620px); }
+  .verdict { text-align:center; font-size: 14px; font-weight:600; padding: 8px; border-radius: 10px; margin-bottom: 10px; background: var(--soft); }
+  .verdict.ok { background:#e7f6ee; color:#1E8A5B; }
+  .verdict.no { background:#fdecea; color:#C0392B; }
+  .two { display:flex; gap:12px; flex-wrap:wrap; }
+  .model { flex:1 1 260px; min-width: 240px; border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .model h2 { font-size:14px; margin:0 0 6px; display:flex; justify-content:space-between; align-items:baseline; }
+  .model h2 .acc { font-size:11px; color:#888; font-weight:500; }
+  .model .big { font-size:34px; font-weight:700; text-align:center; line-height:1.1; }
+  .model.mlp .big { color: var(--accent); }
+  .model.cnn .big { color: var(--cnn); }
+  .bars { margin-top:8px; }
+  .bar { display:flex; align-items:center; gap:6px; font-size:11px; margin:2px 0; }
+  .bar .lab { width:14px; text-align:center; color:#777; }
+  .bar .track { flex:1; height:8px; background:#eef0f3; border-radius:4px; overflow:hidden; }
+  .bar .fill { height:100%; background:var(--accent); }
+  .model.cnn .bar .fill { background: var(--cnn); }
+  .bar .val { width:38px; text-align:right; color:#666; }
+  .model canvas.viz { width:100%; height:auto; display:block; margin-top:8px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .model .cap { font-size:11px; color:#888; margin:4px 0 0; line-height:1.5; }
   .rem { font-size: 12px; color: var(--accent); margin: 6px 0; text-align: center; font-weight: 600; }
-
-  .corrector { display: flex; flex-direction: column; gap: 8px; margin-top: 10px;
-               border-top: 1px dashed var(--line); padding-top: 10px; }
-  .corrector .cap { font-size: 12px; color: #666; margin: 0; line-height: 1.5; }
-  .digits { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .digits .dbtn { font-size: 17px; padding: 8px 0; border-radius: 8px; background: #fff; }
+  .corrector { display:flex; flex-direction:column; gap:8px; margin-top:10px; border-top:1px dashed var(--line); padding-top:10px; }
+  .corrector .cap { font-size:12px; color:#666; margin:0; line-height:1.5; }
+  .digits { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; }
+  .digits .dbtn { font-size:17px; padding:8px 0; border-radius:8px; background:#fff; }
   .digits .dbtn:hover { background: var(--soft); }
-  .digits .dbtn:active { background: var(--accent); color: #fff; }
+  .digits .dbtn:active { background: var(--accent); color:#fff; }
+  .cnnmissing { color:#b00; font-size:13px; text-align:center; padding:14px 0; }
 </style>
 </head>
 <body>
-  <h1>手写数字识别 · 网络连线可视化 + 纠错学习</h1>
+  <h1>手写数字识别 · MLP vs CNN 并排对比</h1>
   <div class="layout">
     <!-- 左：画板 -->
     <div class="card">
       <canvas id="pad" width="280" height="280"></canvas>
       <div class="row">
-        <button class="primary" id="go">预测</button>
+        <button class="cmp" id="go">预测 &amp; 对比</button>
         <button id="clear">清空</button>
       </div>
       <div class="result">
@@ -63,22 +77,34 @@
       </div>
     </div>
 
-    <!-- 右：神经网络运行过程（节点 + 链接线） -->
-    <div class="card net">
-      <h2>神经网络运行过程（连线示意）</h2>
-      <p class="cap">前向传播：输入经 3 个隐藏层逐层提取特征，最后 softmax 输出 10 类概率。每一层都是<b>全连接</b>——下图用连线表示「每个神经元连向下一层每个神经元」。</p>
-      <canvas id="netC" width="360" height="470"></canvas>
-      <div class="legend">
-        • <b>节点颜色</b>越深 = 该神经元激活越强<br>
-        • <b>连线</b>越明显 = 信号流向被激活的神经元（隐藏层 256→128→64 为示意采样，非全量）<br>
-        • 输出列：数字标签 + 右侧概率为该类的得分
+    <!-- 右：MLP 与 CNN 对比 -->
+    <div class="card compare">
+      <div class="verdict" id="verdict">画一个数字开始对比</div>
+      <div class="two">
+        <!-- MLP -->
+        <div class="model mlp">
+          <h2>MLP 多层感知机 <span class="acc" id="mlpAcc"></span></h2>
+          <div class="big" id="mlpPred">?</div>
+          <div class="bars" id="mlpBars"></div>
+          <canvas class="viz" id="netC" width="360" height="470"></canvas>
+          <div class="cap">全连接：输入→3 隐藏层→输出（节点颜色 = 激活强度）</div>
+        </div>
+        <!-- CNN -->
+        <div class="model cnn">
+          <h2>CNN 卷积网络 <span class="acc" id="cnnAcc"></span></h2>
+          <div class="big" id="cnnPred">?</div>
+          <div class="bars" id="cnnBars"></div>
+          <canvas class="viz" id="cnnC" width="280" height="150"></canvas>
+          <div class="cap" id="cnnCap">第一卷积层 8 张特征图（保留空间结构）</div>
+          <div class="cnnmissing" id="cnnMissing" style="display:none">未训练 CNN 模型<br>运行 python train_cnn.py 启用对比</div>
+        </div>
       </div>
 
       <div class="rem" id="remBadge">已个性化学习 0 个样本</div>
 
       <!-- 纠错学习 -->
       <div class="corrector" id="corrector" style="display:none">
-        <div class="cap">识别有误？点选正确数字，模型会把这个样本「记住」并就地更新权重（增量学习）。</div>
+        <div class="cap">识别有误？点选正确数字，两个模型都会「记住」并就地更新权重（增量学习）。</div>
         <div id="digits" class="digits"></div>
         <div class="row">
           <button id="resetLearn">重置个性化学习</button>
@@ -110,7 +136,14 @@ function clearPad() {
   document.getElementById('pred').textContent = '?';
   document.getElementById('status').textContent = '已清空，画一个数字吧';
   document.getElementById('corrector').style.display = 'none';
+  document.getElementById('verdict').textContent = '画一个数字开始对比';
+  document.getElementById('verdict').className = 'verdict';
   renderNetwork(null);
+  renderCNN(null);
+  document.getElementById('mlpPred').textContent = '?';
+  document.getElementById('cnnPred').textContent = '?';
+  document.getElementById('mlpBars').innerHTML = '';
+  document.getElementById('cnnBars').innerHTML = '';
 }
 
 canvas.addEventListener('pointerdown', (e) => {
@@ -150,7 +183,23 @@ function preprocess() {
   return out;
 }
 
-// ---- 热力着色：白(0) -> 主题蓝(强) ----
+// ---- 概率条渲染 ----
+function renderBars(elId, probs, pred, color) {
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  let mx = Math.max.apply(null, probs.concat([1e-6]));
+  for (let i = 0; i < 10; i++) {
+    const p = probs[i];
+    const d = document.createElement('div'); d.className = 'bar';
+    d.innerHTML = `<span class="lab">${i}</span>` +
+      `<span class="track"><span class="fill" style="width:${(p*100).toFixed(1)}%"></span></span>` +
+      `<span class="val">${(p*100).toFixed(1)}%</span>`;
+    if (i === pred) d.querySelector('.lab').style.color = color, d.querySelector('.lab').style.fontWeight = '700';
+    el.appendChild(d);
+  }
+}
+
+// ---- MLP 网络连线可视化（复用原逻辑）----
 function heat(t) {
   t = Math.max(0, Math.min(1, t));
   const r = Math.round(255 + (24 - 255) * t);
@@ -158,92 +207,38 @@ function heat(t) {
   const b = Math.round(255 + (165 - 255) * t);
   return `rgb(${r},${g},${b})`;
 }
+function colY(k, top, bot) { const a = []; for (let i=0;i<k;i++) a.push(top+(bot-top)*(i+0.5)/k); return a; }
+function sampleLayer(arr, k) { const n=arr.length, vals=[]; for (let i=0;i<k;i++){const ii=Math.round(i*(n-1)/(k-1)); vals.push(arr[ii]);} return vals; }
+function line2(c,x1,y1,x2,y2,a){ c.strokeStyle='rgba(40,90,160,'+a.toFixed(3)+')'; c.lineWidth=1; c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke(); }
+function node(c,x,y,r,t){ c.beginPath(); c.arc(x,y,r,0,7); c.fillStyle=heat(t); c.fill(); c.lineWidth=1; c.strokeStyle='rgba(20,40,80,.45)'; c.stroke(); }
+function drawThumb(c,arr,x,y,w,h){ const off=document.createElement('canvas'); off.width=28; off.height=28; const o=off.getContext('2d'); const id=o.createImageData(28,28);
+  for (let i=0;i<784;i++){ const v=Math.max(0,Math.min(1,arr[i])); const p=i*4; id.data[p]=id.data[p+1]=id.data[p+2]=v*255; id.data[p+3]=255; }
+  o.putImageData(id,0,0); c.fillStyle='#000'; c.fillRect(x,y,w,h); c.drawImage(off,x,y,w,h); }
 
-// ---- 画图辅助 ----
-function colY(k, top, bot) {
-  const a = [];
-  for (let i = 0; i < k; i++) a.push(top + (bot - top) * (i + 0.5) / k);
-  return a;
-}
-function sampleLayer(arr, k) {
-  const n = arr.length, vals = [];
-  for (let i = 0; i < k; i++) {
-    const ii = Math.round(i * (n - 1) / (k - 1));
-    vals.push(arr[ii]);
-  }
-  return vals;
-}
-function line2(c, x1, y1, x2, y2, a) {
-  c.strokeStyle = 'rgba(40,90,160,' + a.toFixed(3) + ')';
-  c.lineWidth = 1; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
-}
-function node(c, x, y, r, t) {
-  c.beginPath(); c.arc(x, y, r, 0, 7);
-  c.fillStyle = heat(t); c.fill();
-  c.lineWidth = 1; c.strokeStyle = 'rgba(20,40,80,.45)'; c.stroke();
-}
-function drawThumb(c, arr, x, y, w, h) {
-  const off = document.createElement('canvas'); off.width = 28; off.height = 28;
-  const o = off.getContext('2d'); const id = o.createImageData(28, 28);
-  for (let i = 0; i < 784; i++) {
-    const v = Math.max(0, Math.min(1, arr[i]));
-    const p = i * 4; id.data[p] = id.data[p + 1] = id.data[p + 2] = v * 255; id.data[p + 3] = 255;
-  }
-  o.putImageData(id, 0, 0);
-  c.fillStyle = '#000'; c.fillRect(x, y, w, h);
-  c.drawImage(off, x, y, w, h);
-}
-
-// ---- 主可视化：节点 + 链接线 ----
 function renderNetwork(data) {
   const cv = document.getElementById('netC');
   const c = cv.getContext('2d');
   const W = cv.width, H = cv.height;
   c.clearRect(0, 0, W, H);
-
-  if (!data) { document.getElementById('corrector').style.display = 'none'; return; }
-
-  const input = data.layers.input, h1 = data.layers.h1, h2 = data.layers.h2,
-        h3 = data.layers.h3, out = data.probabilities;
+  if (!data || !data.layers) { document.getElementById('corrector').style.display = 'none'; return; }
+  const input = data.layers.input, h1 = data.layers.h1, h2 = data.layers.h2, h3 = data.layers.h3, out = data.probabilities;
   const top = 26, bot = H - 26, cy = H / 2;
-
-  const xIn = 12, wIn = 56;
-  const xH1 = 125, xH2 = 195, xH3 = 262, xOut = 315;
-
+  const xIn = 12, wIn = 56, xH1 = 125, xH2 = 195, xH3 = 262, xOut = 315;
   drawThumb(c, input, xIn, cy - 28, wIn, 56);
-
   const s1 = sampleLayer(h1, 12), s2 = sampleLayer(h2, 10), s3 = sampleLayer(h3, 8);
-  const m1 = Math.max.apply(null, h1.concat([1e-6]));
-  const m2 = Math.max.apply(null, h2.concat([1e-6]));
-  const m3 = Math.max.apply(null, h3.concat([1e-6]));
-  const yH1 = colY(12, top, bot), yH2 = colY(10, top, bot),
-        yH3 = colY(8, top, bot), yOut = colY(10, top, bot);
-
-  // 连线：输入 -> 隐藏①（从缩略图右缘 3 点扇出）
+  const m1 = Math.max.apply(null, h1.concat([1e-6])), m2 = Math.max.apply(null, h2.concat([1e-6])), m3 = Math.max.apply(null, h3.concat([1e-6]));
+  const yH1 = colY(12, top, bot), yH2 = colY(10, top, bot), yH3 = colY(8, top, bot), yOut = colY(10, top, bot);
   const origins = [cy - 22, cy, cy + 22];
-  for (let i = 0; i < 12; i++) {
-    const a = 0.05 + 0.30 * (s1[i] / m1);
-    for (const oy of origins) line2(c, xIn + wIn, oy, xH1, yH1[i], a);
-  }
-  // 隐藏① -> ② -> ③（全连接示意：采样点两两相连）
-  for (let i = 0; i < 12; i++) for (let j = 0; j < 10; j++)
-    line2(c, xH1, yH1[i], xH2, yH2[j], 0.05 + 0.30 * (s2[j] / m2));
-  for (let i = 0; i < 10; i++) for (let j = 0; j < 8; j++)
-    line2(c, xH2, yH2[i], xH3, yH3[j], 0.05 + 0.30 * (s3[j] / m3));
-  // 隐藏③ -> 输出（按概率强弱）
-  for (let i = 0; i < 8; i++) for (let j = 0; j < 10; j++)
-    line2(c, xH3, yH3[i], xOut, yOut[j], 0.05 + 0.30 * Math.min(1, out[j] * 3));
-
-  // 节点
-  for (let i = 0; i < 12; i++) node(c, xH1, yH1[i], 5, s1[i] / m1);
-  for (let i = 0; i < 10; i++) node(c, xH2, yH2[i], 5, s2[i] / m2);
-  for (let i = 0; i < 8; i++) node(c, xH3, yH3[i], 5, s3[i] / m3);
-  for (let i = 0; i < 10; i++) {
-    node(c, xOut, yOut[i], 8, Math.min(1, out[i] * 3));
-    if (i === data.prediction) {        // 高亮预测结果
-      c.strokeStyle = '#185FA5'; c.lineWidth = 2.5;
-      c.beginPath(); c.arc(xOut, yOut[i], 11, 0, 7); c.stroke();
-    }
+  for (let i=0;i<12;i++){ const a=0.05+0.30*(s1[i]/m1); for (const oy of origins) line2(c, xIn+wIn, oy, xH1, yH1[i], a); }
+  for (let i=0;i<12;i++) for (let j=0;j<10;j++) line2(c, xH1, yH1[i], xH2, yH2[j], 0.05+0.30*(s2[j]/m2));
+  for (let i=0;i<10;i++) for (let j=0;j<8;j++) line2(c, xH2, yH2[i], xH3, yH3[j], 0.05+0.30*(s3[j]/m3));
+  for (let i=0;i<8;i++) for (let j=0;j<10;j++) line2(c, xH3, yH3[i], xOut, yOut[j], 0.05+0.30*Math.min(1, out[j]*3));
+  for (let i=0;i<12;i++) node(c, xH1, yH1[i], 5, s1[i]/m1);
+  for (let i=0;i<10;i++) node(c, xH2, yH2[i], 5, s2[i]/m2);
+  for (let i=0;i<8;i++) node(c, xH3, yH3[i], 5, s3[i]/m3);
+  for (let i=0;i<10;i++) {
+    node(c, xOut, yOut[i], 8, Math.min(1, out[i]*3));
+    if (i === data.prediction) { c.strokeStyle = '#185FA5'; c.lineWidth = 2.5; c.beginPath(); c.arc(xOut, yOut[i], 11, 0, 7); c.stroke(); }
     c.fillStyle = i === data.prediction ? '#185FA5' : '#888';
     c.font = 'bold 11px sans-serif'; c.textAlign = 'center';
     c.fillText(String(i), xOut, yOut[i] - 13);
@@ -253,53 +248,124 @@ function renderNetwork(data) {
   }
 }
 
-// ---- 预测 ----
+// ---- CNN 特征图可视化（首层 8 张 28×28）----
+function renderCNN(cnn) {
+  const cv = document.getElementById('cnnC');
+  const c = cv.getContext('2d');
+  c.clearRect(0, 0, cv.width, cv.height);
+  if (!cnn || !cnn.present) {
+    document.getElementById('cnnMissing').style.display = cnn && cnn.present === false ? 'block' : 'none';
+    return;
+  }
+  document.getElementById('cnnMissing').style.display = 'none';
+  const maps = cnn.conv1, shape = cnn.conv1_shape; // 8 × (28*28)
+  const n = maps.length, sh = shape[0];
+  // 网格：4 列
+  const cols = 4, rows = Math.ceil(n / cols);
+  const cw = cv.width / cols, chh = cv.height / rows;
+  for (let k = 0; k < n; k++) {
+    const m = maps[k];
+    let mx = 1e-6; for (let i=0;i<m.length;i++) mx = Math.max(mx, m[i]);
+    const off = document.createElement('canvas'); off.width = sh; off.height = sh;
+    const o = off.getContext('2d'); const id = o.createImageData(sh, sh);
+    for (let i=0;i<sh*sh;i++){ const v=Math.max(0,Math.min(1,m[i]/mx)); const p=i*4; id.data[p]=id.data[p+1]=id.data[p+2]=v*255; id.data[p+3]=255; }
+    o.putImageData(id, 0, 0);
+    const cx = (k % cols) * cw, cyy = Math.floor(k / cols) * chh;
+    o.drawImage(off, 0, 0, sh, sh, 0, 0, sh, sh); // placeholder
+    c.fillStyle = '#000'; c.fillRect(cx+2, cyy+2, cw-4, chh-4);
+    c.drawImage(off, cx+2, cyy+2, cw-4, chh-4);
+    c.fillStyle = '#888'; c.font = '9px sans-serif'; c.textAlign = 'left';
+    c.fillText('f' + k, cx+4, cyy+12);
+  }
+}
+
+// ---- 预测（同时对比 MLP 与 CNN）----
 async function predict() {
   const status = document.getElementById('status');
   const predEl = document.getElementById('pred');
   status.textContent = '识别中…';
   try {
-    const res = await fetch('/predict', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch('/predict_both', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pixels: preprocess() })
     });
     const data = await res.json();
     if (data.error) { status.textContent = '错误: ' + data.error; return; }
-    predEl.textContent = data.prediction;
-    status.textContent = '识别结果 · 右侧为网络连线与激活';
+
+    const mlp = data.mlp, cnn = data.cnn;
+    predEl.textContent = mlp.prediction;
+    status.textContent = '识别结果 · 右侧为 MLP / CNN 对比';
     document.getElementById('remBadge').textContent = '已个性化学习 ' + data.remembered + ' 个样本';
     document.getElementById('corrector').style.display = 'flex';
-    renderNetwork(data);
+
+    // MLP 面板
+    document.getElementById('mlpPred').textContent = mlp.prediction;
+    renderBars('mlpBars', mlp.probabilities, mlp.prediction, '#185FA5');
+    try {
+      renderNetwork({ layers: mlp.layers, prediction: mlp.prediction, probabilities: mlp.probabilities });
+    } catch (e) {
+      console.warn('MLP 网络可视化渲染失败:', e);
+    }
+
+    // CNN 面板（独立 try/catch，避免 MLP 异常导致 CNN 不显示）
+    try {
+      if (cnn.present) {
+        document.getElementById('cnnPred').textContent = cnn.prediction;
+        renderBars('cnnBars', cnn.probabilities, cnn.prediction, '#1E8A5B');
+        renderCNN(cnn);
+        document.getElementById('cnnMissing').style.display = 'none';
+        document.getElementById('cnnCap').textContent = cnn.arch;
+      } else {
+        document.getElementById('cnnPred').textContent = '—';
+        document.getElementById('cnnBars').innerHTML = '';
+        renderCNN(cnn);
+      }
+    } catch (e) {
+      console.warn('CNN 渲染失败:', e);
+      document.getElementById('cnnPred').textContent = '—';
+      document.getElementById('cnnBars').innerHTML = '';
+      document.getElementById('cnnMissing').style.display = 'block';
+      document.getElementById('cnnMissing').innerHTML = 'CNN 渲染出错：' + (e.message || e);
+    }
+
+    // 对比结论
+    const v = document.getElementById('verdict');
+    if (cnn.present) {
+      if (data.agree) { v.textContent = `一致：两者都识别为 ${mlp.prediction}`; v.className = 'verdict ok'; }
+      else { v.textContent = `不一致：MLP=${mlp.prediction} ，CNN=${cnn.prediction}`; v.className = 'verdict no'; }
+    } else { v.textContent = 'CNN 模型未加载（仅 MLP）'; v.className = 'verdict'; }
+
+    // 准确率标签
+    const mt = data.meta || {};
+    document.getElementById('mlpAcc').textContent = mt.mlp_acc != null ? ('测试 ' + (mt.mlp_acc*100).toFixed(2) + '%') : '';
+    document.getElementById('cnnAcc').textContent = mt.cnn_acc != null ? ('测试 ' + (mt.cnn_acc*100).toFixed(2) + '%') : '';
   } catch (e) {
-    status.textContent = '无法连接后端，请用 python app.py 启动';
+    console.error('predict 整体异常:', e);
+    status.textContent = '请求失败: ' + e.message;
   }
 }
 document.getElementById('go').addEventListener('click', predict);
 
-// ---- 纠错学习：点选正确数字 ----
+// ---- 纠错学习：点选正确数字（同时教两个模型）----
 async function learn(label) {
   const learnStatus = document.getElementById('learnStatus');
   learnStatus.textContent = '学习中…';
   try {
     const res = await fetch('/learn', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pixels: preprocess(), label })
     });
     const data = await res.json();
     if (data.error) { learnStatus.textContent = '错误: ' + data.error; return; }
     document.getElementById('pred').textContent = data.prediction;
-    document.getElementById('status').textContent = '已记住：这个样本学习为 ' + label;
+    const cnnTxt = data.cnn_prediction != null ? `（CNN→${data.cnn_prediction}）` : '';
+    document.getElementById('status').textContent = '已记住：这个样本学习为 ' + label + ' ' + cnnTxt;
     learnStatus.textContent = '已把这个样本当作 ' + label + ' 学习（累计记住 ' + data.remembered + ' 个）';
     document.getElementById('remBadge').textContent = '已个性化学习 ' + data.remembered + ' 个样本';
-    renderNetwork(data);
-  } catch (e) {
-    learnStatus.textContent = '无法连接后端';
-  }
+    // 重新拉取对比视图
+    predict();
+  } catch (e) { learnStatus.textContent = '无法连接后端'; }
 }
-
-// 生成 0~9 纠错按钮
 const digitsEl = document.getElementById('digits');
 for (let d = 0; d < 10; d++) {
   const b = document.createElement('button');
@@ -307,8 +373,6 @@ for (let d = 0; d < 10; d++) {
   b.addEventListener('click', () => learn(d));
   digitsEl.appendChild(b);
 }
-
-// 重置个性化学习
 document.getElementById('resetLearn').addEventListener('click', async () => {
   if (!confirm('确定清空所有纠错记忆、恢复到基础模型？')) return;
   try {
@@ -319,6 +383,7 @@ document.getElementById('resetLearn').addEventListener('click', async () => {
 });
 
 renderNetwork(null);
+renderCNN(null);
 </script>
 </body>
 </html>

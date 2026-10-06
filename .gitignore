@@ -1,17 +1,31 @@
-# ---- 训练数据：可由 download_data.py 重新下载，不入库 ----
+# Portable Python runtime (too big, can be regenerated)
+runtime/
+
+# MNIST dataset (downloaded locally, not needed in repo)
 data/
 
-# ---- Python 缓存 ----
+# Trained model weights (binary, optional — uncomment if you want to share pre-trained models)
+# *.npz
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
 
-# ---- 纠错学习记忆（运行时生成，含用户个性化数据）----
-corrections.npz
-
-# ---- 系统/编辑器文件 ----
+# OS / editor junk
 .DS_Store
 Thumbs.db
-*.swp
+.vscode/
+.idea/
 
-# 说明：runtime/（内置 Python + numpy 便携环境，约 83MB）按需求保留入库，
-# 便于 clone 后无需安装环境、双击 run.bat 即跑。model.npz（已训练权重，约 2MB）同样入库。
+# Local git helper tools (not part of project)
+git/
+gh/
+
+# Logs & temp
+*.log
+*.tmp
+server_out.log
+server_err.log
+run_out.log
+run_err.log

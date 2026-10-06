@@ -1,0 +1,4 @@
+{
+  "cnn_acc": 0.9865,
+  "cnn_arch": "CNN: Conv(8)→Pool→Conv(16)→Pool→FC(10)"
+}
